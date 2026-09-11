@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Networker: Hacker Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'sans-serif'],
+                        mono: ['Orbitron', 'sans-serif']
+                    },
+                    colors: {
+                        cyber: {
+                            dark: '#0a0b10',
+                            panel: '#121520',
+                            border: '#1e2538',
+                            cyan: '#00f0ff',
+                            magenta: '#ff0055',
+                            green: '#00ff66',
+                            yellow: '#f3e600'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0b10;
+            color: #e2e8f0;
+            overflow-x: hidden;
+        }
+        .glow-text {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+        }
+        .glow-box {
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #121520;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e2538;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00f0ff;
+        }
+
+        /* Screen Shake Animation */
+        @keyframes screenShake {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            20% { transform: translate(-4px, 3px) rotate(-0.3deg); }
+            40% { transform: translate(4px, -3px) rotate(0.3deg); }
+            60% { transform: translate(-2px, -1px) rotate(0deg); }
+            80% { transform: translate(2px, 1px) rotate(0.3deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .shake-screen {
+            animation: screenShake 0.3s ease-in-out;
+        }
+
+        /* Floating Number Animation */
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-45px) scale(1.1); }
+        }
+        .floating-number {
+            position: absolute;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: bold;
+            pointer-events: none;
+            animation: floatUp 0.9s ease-out forwards;
+            z-index: 30;
+            text-shadow: 0 0 8px rgba(0,0,0,0.8);
+        }
+
+        /* Switch Activation Pulse Animation */
+        @keyframes switchPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(243, 230, 0, 0)); }
+            50% { transform: scale(1.3); filter: drop-shadow(0 0 18px rgba(243, 230, 0, 0.9)); }
+            100% { transform: scale(1); filter: drop-shadow(0 0 0px rgba(243, 230, 0, 0)); }
+        }
+        .switch-active-anim {
+            animation: switchPulse 0.4s ease-out;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans" id="main-body">
+
+    <div id="auth-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cyber-panel border border-cyber-cyan rounded-xl max-w-md w-full p-6 glow-box shadow-2xl relative">
+            <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="absolute -top-3 left-6 bg-cyber-cyan text-cyber-dark font-mono text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">
+                SECURE AUTHENTICATION V3.2
+            </div>
+            
+            <div class="text-center mb-5 mt-2">
+                <div class="w-14 h-14 bg-cyber-cyan/10 border border-cyber-cyan/30 rounded-xl flex items-center justify-center mx-auto mb-3 text-cyber-cyan text-2xl">
+                    <i class="fa-solid fa-user-secret"></i>
+                </div>
+                <h2 class="font-mono text-cyber-cyan font-extrabold text-xl glow-text">NET-RUNNER ACCESS PORTAL</h2>
+                <p class="text-xs text-slate-400 mt-1">ลงทะเบียนหรือเข้าสู่ระบบ (บัญชี <strong class="text-cyber-yellow">admin</strong> หรือ <strong class="text-cyber-cyan">sysadmin</strong> คือสิทธิ์สูงสุด)</p>
+            </div>
+            
+            <form id="auth-form" onsubmit="handleSignIn(event)" class="space-y-3.5">
+                <div>
+                    <label class="block font-mono text-xs text-slate-300 mb-1">ชื่อผู้ใช้ (Hacker Handle):</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                            <i class="fa-solid fa-user"></i>
+                        </span>
+                        <input type="text" id="username-input" placeholder="เช่น admin, sysadmin หรือชื่อของคุณ..." 
+                            class="w-full bg-cyber-dark border border-cyber-border rounded-lg pl-10 pr-3 py-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyber-cyan transition">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-mono text-xs text-slate-300 mb-1">รหัสผ่าน (Access Passkey):</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-500">
+                            <i class="fa-solid fa-key"></i>
+                        </span>
+                        <input type="password" id="password-input" placeholder="••••••••" 
+                            class="w-full bg-cyber-dark border border-cyber-border rounded-lg pl-10 pr-3 py-2.5 text-xs text-slate-200 font-mono focus:outline-none focus:border-cyber-cyan transition">
+                    </div>
+                </div>
+
+                <div id="auth-error" class="text-cyber-magenta text-[11px] font-mono hidden"></div>
+
+                <button type="submit" class="w-full bg-cyber-cyan hover:bg-cyan-400 text-cyber-dark font-mono font-bold text-xs py-3 rounded-lg transition shadow-lg mt-2 flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-terminal"></i>
+                    <span>AUTHENTICATE & CONNECT</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div id="admin-master-modal" class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cyber-panel border border-cyber-yellow rounded-xl max-w-2xl w-full p-6 glow-box shadow-2xl relative max-h-[90vh] flex flex-col">
+            <button onclick="closeModal('admin-master-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <div class="absolute -top-3 left-6 bg-cyber-yellow text-cyber-dark font-mono text-[10px] font-bold px-2.5 py-0.5 rounded uppercase tracking-wider">
+                MASTER ADMIN BACKEND CONTROL
+            </div>
+            
+            <div class="flex items-center space-x-3 mb-4 mt-2">
+                <div class="w-12 h-12 bg-cyber-yellow/10 border border-cyber-yellow/30 rounded-xl flex items-center justify-center text-cyber-yellow text-xl">
+                    <i class="fa-solid fa-server"></i>
+                </div>
+                <div>
+                    <h3 class="font-mono text-cyber-yellow font-extrabold text-lg glow-text">ระบบจัดการหลังบ้าน (Master Control)</h3>
+                    <p class="text-xs text-slate-400">ควบคุมระบบเน็ตเวิร์ก เติมทรัพยากร และปลดล็อกสิทธิ์ผู้ดูแลระบบสูงสุด</p>
+                </div>
+            </div>
+
+            <div class="space-y-4 flex-1 overflow-y-auto pr-1 text-xs font-mono">
+                <div class="bg-cyber-dark p-3.5 rounded-lg border border-cyber-border space-y-2">
+                    <div class="text-cyber-cyan font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-sliders"></i>
+                        <span>ตั้งค่าระบบจำลองทันที (Resource Override)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button onclick="adminGrantCoins()" class="bg-cyber-yellow/10 hover:bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow/40 p-2.5 rounded text-left transition flex items-center justify-between">
+                            <span>เติม Coins (+1000 C)</span>
+                            <i class="fa-solid fa-coins"></i>
+                        </button>
+                        <button onclick="adminHealServer()" class="bg-cyber-green/10 hover:bg-cyber-green/20 text-cyber-green border border-cyber-green/40 p-2.5 rounded text-left transition flex items-center justify-between">
+                            <span>ฟื้นฟู Server Health 100%</span>
+                            <i class="fa-solid fa-heart-pulse"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-cyber-dark p-3.5 rounded-lg border border-cyber-border space-y-2">
+                    <div class="text-cyber-magenta font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-shield-cat"></i>
+                        <span>มาตรการฉุกเฉิน (Master Security)</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 pt-1">
+                        <button onclick="adminWipeThreats()" class="bg-cyber-magenta/10 hover:bg-cyber-magenta/20 text-cyber-magenta border border-cyber-magenta/40 p-2.5 rounded text-left transition flex items-center justify-between">
+                            <span>ล้างมัลแวร์ทั้งหมดทันที</span>
+                            <i class="fa-solid fa-biohazard"></i>
+                        </button>
+                        <button onclick="adminMaxBandwidth()" class="bg-cyber-cyan/10 hover:bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/40 p-2.5 rounded text-left transition flex items-center justify-between">
+                            <span>เร่งแบนด์วิธเป็น 500 Mbps</span>
+                            <i class="fa-solid fa-gauge-high"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 pt-3 border-t border-cyber-border flex justify-between items-center">
+                <span class="text-[11px] text-slate-400">สถานะสิทธิ์: <strong class="text-cyber-yellow">MASTER ADMIN (Level 99)</strong></span>
+                <button onclick="closeModal('admin-master-modal')" class="bg-cyber-yellow hover:bg-yellow-400 text-cyber-dark font-mono font-bold text-xs px-4 py-2 rounded transition">
+                    ปิดหน้าต่างควบคุม
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-cyber-panel border-b border-cyber-border px-4 lg:px-6 py-3.5 flex flex-wrap justify-between items-center z-10 sticky top-0 shadow-lg gap-3">
+        <div class="flex items-center space-x-3">
+            <div class="bg-cyber-cyan/10 p-2.5 rounded-lg border border-cyber-cyan/30 text-cyber-cyan">
+                <i class="fa-solid fa-network-wired text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-mono font-bold text-lg lg:text-xl tracking-wider text-cyber-cyan glow-text">NET-RUNNER V3.0</h1>
+                <p class="text-[11px] lg:text-xs text-slate-400">ระบบจำลองเครือข่าย & สวิตช์สุ่มบัฟ Coins (+2 อัตรา 40%)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center space-x-2 sm:space-x-4 font-mono text-xs sm:text-sm">
+            <div class="bg-cyber-dark px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg border border-cyber-border flex items-center space-x-2">
+                <i class="fa-solid fa-user-shield text-cyber-cyan"></i>
+                <span id="player-display-name" class="text-cyber-cyan font-bold">Operator</span>
+            </div>
+            <div class="bg-cyber-dark px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg border border-cyber-border flex items-center space-x-2">
+                <i class="fa-solid fa-coins text-cyber-yellow"></i>
+                <span class="text-slate-400 hidden sm:inline">Coins:</span>
+                <span id="player-coins" class="text-cyber-yellow font-bold text-sm lg:text-base">600</span>
+            </div>
+            <div class="bg-cyber-dark px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg border border-cyber-border flex items-center space-x-2">
+                <i class="fa-solid fa-bolt text-cyber-cyan"></i>
+                <span class="text-slate-400 hidden sm:inline">Bandwidth:</span>
+                <span id="player-bw" class="text-cyber-cyan font-bold text-sm lg:text-base">100</span><span class="text-[10px] text-slate-400">Mbps</span>
+            </div>
+            
+            <button id="admin-backend-btn" onclick="openMasterAdmin()" class="bg-cyber-yellow/20 hover:bg-cyber-yellow hover:text-cyber-dark text-cyber-yellow border border-cyber-yellow/40 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg transition hidden items-center space-x-1.5 text-xs font-bold">
+                <i class="fa-solid fa-screwdriver-wrench"></i>
+                <span>หลังบ้าน (Admin)</span>
+            </button>
+
+            <button onclick="openModal('auth-modal')" class="bg-cyber-cyan/20 hover:bg-cyber-cyan hover:text-cyber-dark text-cyber-cyan border border-cyber-cyan/40 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg transition flex items-center space-x-1.5 text-xs font-bold">
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                <span>Sign In</span>
+            </button>
+            <button onclick="openModal('info-modal')" class="bg-cyber-border hover:bg-slate-800 text-slate-300 px-3 py-1.5 lg:px-3.5 lg:py-2 rounded-lg transition flex items-center space-x-1.5 text-xs">
+                <i class="fa-solid fa-circle-question text-cyber-cyan"></i>
+                <span class="hidden md:inline">คู่มือ</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 container mx-auto p-3 sm:p-4 lg:p-6 grid grid-cols-1 xl:grid-cols-12 gap-4 lg:gap-6 max-w-[1800px] items-start">
+        
+        <!-- Left Main View -->
+        <section class="xl:col-span-8 flex flex-col space-y-4 order-1 w-full">
+            
+            <!-- Dashboard Top Stats -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 lg:gap-4">
+                <div class="bg-cyber-panel border border-cyber-border rounded-xl p-3.5 lg:p-4 flex items-center justify-between shadow-md">
+                    <div>
+                        <p class="text-[11px] lg:text-xs text-slate-400 font-mono">สถานะเซิร์ฟเวอร์</p>
+                        <h3 id="server-health-text" class="text-cyber-green font-bold text-base lg:text-lg font-mono">100%</h3>
+                    </div>
+                    <div class="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-cyber-green/10 border border-cyber-green/30 flex items-center justify-center text-cyber-green text-sm lg:text-base" id="server-health-icon">
+                        <i class="fa-solid fa-server"></i>
+                    </div>
+                </div>
+
+                <div class="bg-cyber-panel border border-cyber-border rounded-xl p-3.5 lg:p-4 flex items-center justify-between shadow-md">
+                    <div>
+                        <p class="text-[11px] lg:text-xs text-slate-400 font-mono">เวฟปัจจุบัน</p>
+                        <h3 id="wave-count" class="text-cyber-yellow font-bold text-base lg:text-lg font-mono">Wave 1</h3>
+                    </div>
+                    <div class="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-cyber-yellow/10 border border-cyber-yellow/30 flex items-center justify-center text-cyber-yellow text-sm lg:text-base">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </div>
+                </div>
+
+                <div class="bg-cyber-panel border border-cyber-border rounded-xl p-3.5 lg:p-4 flex items-center justify-between shadow-md">
+                    <div>
+                        <p class="text-[11px] lg:text-xs text-slate-400 font-mono">ภัยคุกคาม</p>
+                        <h3 id="threat-count" class="text-cyber-magenta font-bold text-base lg:text-lg font-mono">0 ตัว</h3>
+                    </div>
+                    <div class="w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-cyber-magenta/10 border border-cyber-magenta/30 flex items-center justify-center text-cyber-magenta text-sm lg:text-base animate-pulse">
+                        <i class="fa-solid fa-shield-halved"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Canvas Viewport with Floating Number Container Overlay -->
+            <div class="bg-cyber-panel border border-cyber-border rounded-xl p-3.5 lg:p-4 relative flex flex-col glow-box shadow-xl">
+                <div class="flex justify-between items-center mb-3 px-1 flex-wrap gap-2">
+                    <span class="text-xs font-mono text-slate-300 flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-cyber-yellow animate-pulse"></span>
+                        <span class="font-bold tracking-wider">COIN MINING & SWITCH RANDOM BUFF (40% CHANCE)</span>
+                    </span>
+                    <div class="text-[11px] font-mono text-slate-400 bg-cyber-dark px-3 py-1.5 rounded-lg border border-cyber-border">
+                    </div>
+                </div>
+
+                <div class="relative rounded-xl bg-cyber-dark border border-cyber-border overflow-hidden cursor-crosshair h-[380px] sm:h-[440px] lg:h-[480px]" id="canvas-container">
+                    <canvas id="network-canvas" class="w-full h-full block"></canvas>
+                    <div id="floating-layer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+                </div>
+            </div>
+
+            <!-- Active Defense Action Center -->
+            <div class="bg-cyber-panel border border-cyber-border rounded-xl p-4 shadow-md">
+                <h3 class="text-xs font-mono text-slate-300 mb-3 flex items-center space-x-2">
+                    <i class="fa-solid fa-shield-cat text-cyber-yellow"></i>
+                    <span class="font-bold">ระบบตอบโต้ภัยคุกคามแบบเร่งด่วน (Incident Response Center)</span>
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <button onclick="activateCounterMeasure('isolate')" class="bg-cyber-dark hover:bg-cyber-border border border-cyber-magenta/40 text-cyber-magenta p-3 rounded-xl text-left transition flex items-center space-x-3 group">
+                        <div class="p-2 rounded-lg bg-cyber-magenta/10 group-hover:bg-cyber-magenta/20">
+                            <i class="fa-solid fa-lock text-base"></i>
+                        </div>
+                        <div>
+                            <div class="font-mono text-xs font-bold">ตัดวงจรเน็ตเวิร์ก (Isolate)</div>
+                            <div class="text-[10px] text-slate-400">หยุดภัยชั่วคราว (Cost: 50 C)</div>
+                        </div>
+                    </button>
+
+                    <button onclick="activateCounterMeasure('patch')" class="bg-cyber-dark hover:bg-cyber-border border border-cyber-cyan/40 text-cyber-cyan p-3 rounded-xl text-left transition flex items-center space-x-3 group">
+                        <div class="p-2 rounded-lg bg-cyber-cyan/10 group-hover:bg-cyber-cyan/20">
+                            <i class="fa-solid fa-code-merge text-base"></i>
+                        </div>
+                        <div>
+                            <div class="font-mono text-xs font-bold">แพตช์ช่องโหว่ (Zero-Day)</div>
+                            <div class="text-[10px] text-slate-400">รีเซ็ตเลือด Firewall (Cost: 120 C)</div>
+                        </div>
+                    </button>
+
+                    <button onclick="activateCounterMeasure('flush')" class="bg-cyber-dark hover:bg-cyber-border border border-cyber-green/40 text-cyber-green p-3 rounded-xl text-left transition flex items-center space-x-3 group">
+                        <div class="p-2 rounded-lg bg-cyber-green/10 group-hover:bg-cyber-green/20">
+                            <i class="fa-solid fa-broom text-base"></i>
+                        </div>
+                        <div>
+                            <div class="font-mono text-xs font-bold">ล้างมัลแวร์ทั้งหมด (Purge)</div>
+                            <div class="text-[10px] text-slate-400">เคลียร์ภัยทันที (Cost: 150 C)</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="xl:col-span-4 flex flex-col space-y-4 order-2 xl:sticky xl:top-20 w-full">
+            
+            <div class="bg-cyber-panel border border-cyber-border rounded-xl p-4 lg:p-5 glow-box shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-sm font-mono text-cyber-cyan font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-microchip"></i>
+                        <span id="selected-node-title">เลือกโหนดในแผนผัง</span>
+                    </h3>
+                    <span id="selected-node-level" class="text-xs font-mono bg-cyber-border px-2.5 py-1 rounded-md text-slate-300">Lv. -</span>
+                </div>
+                <div id="node-details-content" class="text-xs text-slate-400 space-y-3.5">
+                    <p class="text-slate-400 italic bg-cyber-dark/50 p-3 rounded-lg border border-cyber-border">คลิกที่โหนดในแผนผังเครือข่ายเพื่อดูสถานะ และติดตั้งระบบป้องกัน</p>
+                </div>
+            </div>
+
+            <div class="bg-cyber-panel border border-cyber-border rounded-xl p-4 lg:p-5 shadow-lg">
+                <h3 class="text-sm font-mono text-slate-200 font-bold mb-3.5 flex items-center space-x-2">
+                    <i class="fa-solid fa-cart-shopping text-cyber-yellow"></i>
+                    <span>ร้านค้าอุปกรณ์เครือข่าย (Hardware Store)</span>
+                </h3>
+                <div class="space-y-3 max-h-[220px] overflow-y-auto pr-1" id="shop-list"></div>
+            </div>
+
+            <div class="bg-cyber-panel border border-cyber-border rounded-xl p-4 lg:p-5 shadow-lg">
+                <h3 class="text-sm font-mono text-slate-200 font-bold mb-3.5 flex items-center space-x-2">
+                    <i class="fa-solid fa-shield-virus text-cyber-cyan"></i>
+                    <span>โปรโตคอลป้องกันเครือข่าย (Firewall & IDS)</span>
+                </h3>
+                <div class="grid grid-cols-1 gap-3" id="protocols-grid"></div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <div id="gameover-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cyber-panel border border-cyber-magenta rounded-xl max-w-md w-full p-6 text-center glow-box relative shadow-2xl">
+            <div class="w-16 h-16 bg-cyber-magenta/20 border border-cyber-magenta/50 rounded-full flex items-center justify-center mx-auto mb-4 text-cyber-magenta text-2xl animate-pulse">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-mono text-cyber-magenta font-extrabold text-xl mb-2">SYSTEM CRASHED (GAME OVER)</h3>
+            <p class="text-xs text-slate-300 mb-6">เซิร์ฟเวอร์หลักโดนทำลายจนหมดสภาพ (Server Health 0%) เครือข่ายทั้งหมดล่มสลาย!</p>
+            <button onclick="restartGame()" class="w-full bg-cyber-magenta hover:bg-pink-600 text-white font-mono font-bold text-xs py-3 rounded-lg transition shadow-lg">
+                เริ่มเกมใหม่ทันที (Restart)
+            </button>
+        </div>
+    </div>
+
+    <div id="info-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-cyber-panel border border-cyber-border rounded-xl max-w-md w-full p-6 glow-box relative">
+            <button onclick="closeModal('info-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+            <h3 class="font-mono text-cyber-cyan font-bold text-lg mb-3 flex items-center space-x-2">
+                <i class="fa-solid fa-circle-question"></i>
+                <span>คู่มือระบบ Switch Buff Coins (สุ่ม 40%)</span>
+            </h3>
+            <div class="text-xs text-slate-300 space-y-2 leading-relaxed">
+                <p><strong class="text-cyber-yellow">ระบบสุ่มบัฟ Coins จากสวิตช์:</strong> เมื่อเม็ด Coins วิ่งผ่าน Switch ในเครือข่าย สวิตช์จะทำการสุ่มเปิดใช้งานบัฟด้วยอัตรา <strong class="text-cyber-cyan">40%</strong>:</p>
+                <ul class="list-disc list-inside pl-2 space-y-1 text-slate-400">
+                    <li><strong class="text-cyber-yellow">ติดสุ่ม (40%):</strong> สวิตช์จะแสดงเอฟเฟกต์กระพริบประกายแสงสีเหลือง พร้อมบวกเพิ่ม <strong class="text-cyber-yellow">+2 Coins</strong> ทันที</li>
+                    <li><strong class="text-slate-400">ไม่ติดสุ่ม (60%):</strong> สัญญาณผ่านไปตามปกติโดยไม่มีการบวกเพิ่ม</li>
+                    <li><strong class="text-cyber-cyan">การอัปเกรดเลเวล:</strong> ยิ่งสวิตช์เลเวลสูง จะยิ่งเพิ่มประสิทธิภาพและความคุ้มค่าในเครือข่าย</li>
+                </ul>
+            </div>
+            <div class="mt-5 text-right">
+                <button onclick="closeModal('info-modal')" class="bg-cyber-cyan hover:bg-cyan-400 text-cyber-dark font-mono font-bold text-xs px-4 py-2 rounded transition">
+                    เข้าใจแล้ว
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-cyber-panel border border-cyber-cyan text-cyber-cyan font-mono text-xs px-4 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center space-x-3 max-w-sm">
+        <i class="fa-solid fa-circle-info text-base shrink-0" id="toast-icon"></i>
+        <span id="toast-msg">แจ้งเตือนระบบ</span>
+    </div>
+
+    <script>
+        let gameState = {
+            coins: 200,
+            bandwidth: 100,
+            serverHealth: 100,
+            threatsCount: 0,
+            currentWave: 1,
+            selectedNodeId: null,
+            isGameOver: false,
+            playerName: 'Operator',
+            isAdmin: false,
+            isLoggedIn: true
+        };
+
+        let nodes = [
+            { id: 1, name: 'Core Router', type: 'router', x: 200, y: 180, level: 1, speed: 20, cost: 150, defense: 50, desc: 'เราเตอร์หลักกระจายสัญญาณทั่วเครือข่าย' },
+            { id: 2, name: 'Switch Alpha', type: 'switch', x: 380, y: 100, level: 1, speed: 15, cost: 100, defense: 40, desc: 'สวิตช์ส่งข้อมูลแผนก A (สุ่ม 40% รับ +2 Coins)' },
+            { id: 3, name: 'Switch Beta', type: 'switch', x: 380, y: 260, level: 1, speed: 15, cost: 100, defense: 40, desc: 'สวิตช์ส่งข้อมูลแผนก B (สุ่ม 40% รับ +2 Coins)' },
+            { 
+                id: 4, 
+                name: 'Security Firewall', 
+                type: 'firewall', 
+                x: 580, 
+                y: 180, 
+                level: 1, 
+                hp: 200, 
+                maxHp: 200, 
+                damageReduction: 20, 
+                cost: 200, 
+                desc: 'ไฟร์วอลล์กรองภัยคุกคามและลดดาเมจก่อนเข้าเซิร์ฟเวอร์' 
+            },
+            { id: 5, name: 'Main Database Server', type: 'server', x: 750, y: 180, level: 1, capacity: 500, cost: 300, defense: 100, desc: 'เซิร์ฟเวอร์หลักเก็บข้อมูลและประมวลผล' }
+        ];
+
+        const links = [
+            { from: 1, to: 2 },
+            { from: 1, to: 3 },
+            { from: 2, to: 4 },
+            { from: 3, to: 4 },
+            { from: 4, to: 5 }
+        ];
+
+        let threats = [];
+        let coinSignals = [];
+
+        let isDragging = false;
+        let draggedNode = null;
+
+        const attackTypes = [
+            { name: 'DDoS Flood', hp: 30, damage: 15, speed: 0.010, color: '#ff0055', desc: 'ระดมส่งทราฟฟิกปลอมถล่มเครือข่าย' },
+            { name: 'SQL Injection', hp: 50, damage: 25, speed: 0.006, color: '#f3e600', desc: 'แทรกคำสั่งเจาะฐานข้อมูลความลับ' },
+            { name: 'Ransomware', hp: 70, damage: 40, speed: 0.004, color: '#ff3300', desc: 'เข้ารหัสลับไฟล์หลักเรียกค่าไถ่' },
+            { name: 'Zero-Day Exploit', hp: 90, damage: 50, speed: 0.008, color: '#00f0ff', desc: 'เจาะช่องโหว่ที่ไม่เคยรู้จักมาก่อน' }
+        ];
+
+        const bossAttack = { name: 'OVERLORD ROOTKIT (BOSS)', hp: 300, damage: 80, speed: 0.003, color: '#9333ea', desc: 'มัลแวร์ระดับบอสพลังชีวิตสูง' };
+
+        const protocols = [
+            { id: 'ids', name: 'IDS / IPS System', active: true, cost: 250, desc: 'ตรวจจับและทำลายมัลแวร์อัตโนมัติทุกๆ 10 วิ' },
+            { id: 'autorepair', name: 'Auto-Repair Server', active: false, cost: 350, desc: 'ซ่อมแซม Server Health อัตโนมัติสุ่ม 5-25% ทุกๆ 5 วินาที' },
+            { id: 'ssl', name: 'End-to-End Encryption', active: false, cost: 400, desc: 'ป้องกันข้อมูลรั่วไหลและเสริมระบบป้องกัน' }
+        ];
+
+        const shopItems = [
+            { type: 'node', name: 'เพิ่ม Node สวิตช์สำรอง', cost: 350, icon: 'fa-network-wired', desc: 'เพิ่มจุดเชื่อมต่อโหนดใหม่ในเครือข่าย' },
+            { type: 'repair', name: 'ซ่อมแซม Server Health', cost: 100, icon: 'fa-wrench', desc: 'ฟื้นฟูสุขภาพเซิร์ฟเวอร์หลัก +25%' },
+            { type: 'speed', name: 'Overclock Bandwidth', cost: 200, icon: 'fa-gauge-high', desc: 'เพิ่มแบนด์วิธรวม +50 Mbps' }
+        ];
+
+        const canvas = document.getElementById('network-canvas');
+        const ctx = canvas.getContext('2d');
+        let container = document.getElementById('canvas-container');
+
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        window.onload = function() {
+            resizeCanvas();
+            initShop();
+            initProtocols();
+            updateUI();
+
+            setInterval(gameLoop, 1000 / 60);
+            setInterval(waveProgressionTimer, 9000);     
+            setInterval(runProtocolsTask, 10000);        
+            setInterval(runAutoRepairTask, 5000);        
+            setInterval(spawnCoinSignals, 3000);
+        };
+
+        function handleSignIn(e) {
+            e.preventDefault();
+            let username = document.getElementById('username-input').value.trim().toLowerCase();
+            let password = document.getElementById('password-input').value.trim();
+            let errorEl = document.getElementById('auth-error');
+
+            if (!username || !password) {
+                errorEl.innerText = 'กรุณากรอกชื่อผู้ใช้และรหัสผ่านให้ครบถ้วน';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (password.length < 4) {
+                errorEl.innerText = 'รหัสผ่านต้องมีความยาวอย่างน้อย 4 ตัวอักษรขึ้นไป';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            if (username === 'admin' || username === 'sysadmin') {
+                gameState.playerName = username.toUpperCase();
+                gameState.isAdmin = true;
+                gameState.coins += 1500;
+                gameState.bandwidth = 300;
+                gameState.isLoggedIn = true;
+                completeAuthentication();
+                showToast(`เข้าสู่ระบบ ADMIN สำเร็จ! ปลดล็อกสิทธิ์หลังบ้าน (Master Backend)`, 'success');
+            } else {
+                gameState.playerName = document.getElementById('username-input').value.trim();
+                gameState.isAdmin = false;
+                gameState.isLoggedIn = true;
+                completeAuthentication();
+                showToast(`ลงชื่อเข้าใช้สำเร็จ: ยินดีต้อนรับ ${gameState.playerName}`, 'success');
+            }
+        }
+
+        function completeAuthentication() {
+            document.getElementById('player-display-name').innerText = gameState.playerName;
+            let adminBtn = document.getElementById('admin-backend-btn');
+
+            if (gameState.isAdmin) {
+                document.getElementById('player-display-name').className = 'text-cyber-yellow font-bold';
+                adminBtn.classList.remove('hidden');
+                adminBtn.classList.add('flex');
+            } else {
+                document.getElementById('player-display-name').className = 'text-cyber-cyan font-bold';
+                adminBtn.classList.remove('flex');
+                adminBtn.classList.add('hidden');
+            }
+            closeModal('auth-modal');
+            updateUI();
+        }
+
+        function openMasterAdmin() {
+            if (!gameState.isAdmin) {
+                showToast('สิทธิ์ของคุณไม่เพียงพอ! เฉพาะบัญชี Admin เท่านั้นที่เข้าถึงระบบหลังบ้านได้', 'error');
+                return;
+            }
+            openModal('admin-master-modal');
+        }
+
+        function adminGrantCoins() {
+            gameState.coins += 1000;
+            updateUI();
+            showToast('[Master Admin] เติม Coins สำเร็จ (+1000 C)', 'success');
+        }
+
+        function adminHealServer() {
+            gameState.serverHealth = 100;
+            let fw = nodes.find(n => n.type === 'firewall');
+            if(fw) fw.hp = fw.maxHp;
+            updateUI();
+            showToast('[Master Admin] ฟื้นฟูเซิร์ฟเวอร์หลักและไฟร์วอลล์เต็ม 100% แล้ว', 'success');
+        }
+
+        function adminWipeThreats() {
+            threats = [];
+            gameState.threatsCount = 0;
+            updateUI();
+            showToast('[Master Admin] กวาดล้างมัลแวร์ทั้งหมดออกจากเครือข่ายเรียบร้อย', 'success');
+        }
+
+        function adminMaxBandwidth() {
+            gameState.bandwidth = 500;
+            updateUI();
+            showToast('[Master Admin] เร่งแบนด์วิธเครือข่ายเป็น 500 Mbps แล้ว', 'success');
+        }
+
+        function closeAuthModal() {
+            closeModal('auth-modal');
+        }
+
+        function spawnCoinSignals() {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            
+            let rand = Math.random() * 100;
+            let baseCoinValue = 5;
+            
+            if (rand < 50) {
+                baseCoinValue = 5;   
+            } else if (rand < 80) {
+                baseCoinValue = 10;  
+            } else {
+                baseCoinValue = 15;  
+            }
+
+            let routePath = [1, 2, 4, 5];
+            if (Math.random() > 0.5) {
+                routePath = [1, 3, 4, 5];
+            }
+            
+            coinSignals.push({
+                path: routePath,
+                segmentIndex: 0,
+                progress: 0,
+                speed: 0.015 + (Math.random() * 0.01),
+                value: baseCoinValue,
+                buffedNodes: {}
+            });
+        }
+
+        function showFloatingNumber(text, type, overrideX, overrideY) {
+            let layer = document.getElementById('floating-layer');
+            let el = document.createElement('div');
+            el.className = 'floating-number';
+            el.innerText = text;
+
+            let serverNode = nodes.find(n => n.type === 'server') || nodes[nodes.length - 1];
+            let px = overrideX !== undefined ? overrideX : (serverNode.x / 900) * canvas.width;
+            let py = overrideY !== undefined ? overrideY : (serverNode.y / 360) * canvas.height;
+
+            el.style.left = `${px}px`;
+            el.style.top = `${py - 10}px`;
+
+            if (type === 'success') el.style.color = '#00ff66';
+            else if (type === 'coin') el.style.color = '#f3e600';
+            else if (type === 'damage') el.style.color = '#ff0055';
+            else if (type === 'firewall') el.style.color = '#f3e600';
+            else el.style.color = '#00f0ff';
+
+            layer.appendChild(el);
+            setTimeout(() => { el.remove(); }, 900);
+        }
+
+        function triggerScreenShake() {
+            let bodyEl = document.getElementById('main-body');
+            bodyEl.classList.add('shake-screen');
+            setTimeout(() => { bodyEl.classList.remove('shake-screen'); }, 300);
+        }
+
+        function runAutoRepairTask() {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            let autoRepairProto = protocols.find(p => p.id === 'autorepair');
+            if (autoRepairProto && autoRepairProto.active && gameState.serverHealth < 100) {
+                let repairAmount = Math.floor(Math.random() * 21) + 5;
+                gameState.serverHealth = Math.min(100, gameState.serverHealth + repairAmount);
+                updateUI();
+                showFloatingNumber(`+${repairAmount}% HP`, 'success');
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            nodes.forEach(node => {
+                let nx = (node.x / 900) * canvas.width;
+                let ny = (node.y / 360) * canvas.height;
+                let dist = Math.hypot(x - nx, y - ny);
+                if (dist < 32) {
+                    isDragging = true;
+                    draggedNode = node;
+                    selectNode(node.id);
+                }
+            });
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || !draggedNode || gameState.isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            let y = e.clientY - rect.top;
+
+            x = Math.max(30, Math.min(canvas.width - 30, x));
+            y = Math.max(30, Math.min(canvas.height - 30, y));
+
+            draggedNode.x = (x / canvas.width) * 900;
+            draggedNode.y = (y / canvas.height) * 360;
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                draggedNode = null;
+            }
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            let clickedThreatIdx = -1;
+            threats.forEach((th, idx) => {
+                let startX = 50;
+                let startY = canvas.height / 2;
+                let targetNode = nodes[th.targetIdx];
+                let targetX = (targetNode.x / 900) * canvas.width;
+                let targetY = (targetNode.y / 360) * canvas.height;
+                let tx = startX + (targetX - startX) * th.progress;
+                let ty = startY + (targetY - startY) * th.progress;
+                let hitRadius = th.isBoss ? 36 : 28;
+                if (Math.hypot(x - tx, y - ty) < hitRadius) {
+                    clickedThreatIdx = idx;
+                }
+            });
+
+            if (clickedThreatIdx !== -1) {
+                let th = threats[clickedThreatIdx];
+                let clickDmg = 25; 
+                th.hp -= clickDmg;
+                
+                let startX = 50;
+                let startY = canvas.height / 2;
+                let targetNode = nodes[th.targetIdx];
+                let targetX = (targetNode.x / 900) * canvas.width;
+                let targetY = (targetNode.y / 360) * canvas.height;
+                let tx = startX + (targetX - startX) * th.progress;
+                let ty = startY + (targetY - startY) * th.progress;
+                showFloatingNumber(`-${clickDmg} HP`, 'damage', tx, ty);
+
+                if (th.hp <= 0) {
+                    threats.splice(clickedThreatIdx, 1);
+                    gameState.threatsCount = threats.length;
+                    let reward = th.isBoss ? 150 : 30;
+                    gameState.coins += reward;
+                    showFloatingNumber(`+${reward} C`, 'success', tx, ty);
+                    showToast(`กำจัดมัลแวร์ ${th.type.name} สำเร็จ!`, 'success');
+                }
+                updateUI();
+            }
+        });
+
+        function selectNode(id) {
+            gameState.selectedNodeId = id;
+            let node = nodes.find(n => n.id === id);
+            if (!node) return;
+
+            document.getElementById('selected-node-title').innerText = `${node.name} (${node.type.toUpperCase()})`;
+            document.getElementById('selected-node-level').innerText = `Lv. ${node.level}`;
+            
+            let contentHtml = `<p class="text-slate-300">${node.desc}</p>`;
+
+            if (node.type === 'firewall') {
+                contentHtml += `
+                    <div class="bg-cyber-dark p-2.5 rounded border border-cyber-border space-y-1 font-mono text-xs">
+                        <div class="flex justify-between"><span class="text-slate-400">สถานะ Firewall:</span> <span class="text-cyber-green">ACTIVE</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">เลือด (HP):</span> <span class="text-cyber-cyan">${node.hp} / ${node.maxHp} หน่วย</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">ลดดาเมจ:</span> <span class="text-cyber-yellow">${node.damageReduction}%</span></div>
+                    </div>
+                    <div class="flex space-x-2 mt-2">
+                        <button onclick="upgradeFirewallHp(${node.id})" class="flex-1 bg-cyber-cyan hover:bg-cyan-400 text-cyber-dark font-bold font-mono py-2 px-2 rounded text-[11px] transition flex items-center justify-center space-x-1">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <span>เพิ่มเลือด (+200 HP / 150C)</span>
+                        </button>
+                        <button onclick="upgradeFirewallReduction(${node.id})" class="flex-1 bg-cyber-magenta/20 hover:bg-cyber-magenta hover:text-white text-cyber-magenta border border-cyber-magenta/40 font-bold font-mono py-2 px-2 rounded text-[11px] transition flex items-center justify-center space-x-1">
+                            <i class="fa-solid fa-shield-virus"></i>
+                            <span>เพิ่มลดดาเมจ (+15% / 200C)</span>
+                        </button>
+                    </div>
+                `;
+            } else if (node.type === 'switch') {
+                contentHtml += `
+                    <div class="bg-cyber-dark p-2.5 rounded border border-cyber-border space-y-1 font-mono text-xs">
+                        <div class="flex justify-between"><span class="text-slate-400">สถานะ Switch:</span> <span class="text-cyber-green">ONLINE</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">โอกาสสุ่มบัฟ (40%):</span> <span class="text-cyber-yellow">+2 Coins</span></div>
+                    </div>
+                    <div class="flex space-x-2 mt-2">
+                        <button onclick="upgradeNode(${node.id})" class="flex-1 bg-cyber-cyan hover:bg-cyan-400 text-cyber-dark font-bold font-mono py-2 px-2 rounded text-[11px] transition flex items-center justify-center space-x-1">
+                            <i class="fa-solid fa-arrow-up"></i>
+                            <span>อัปเกรดสวิตช์ (${node.cost * node.level} C)</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                contentHtml += `
+                    <div class="bg-cyber-dark p-2.5 rounded border border-cyber-border space-y-1 font-mono text-xs">
+                        <div class="flex justify-between"><span class="text-slate-400">สถานะ:</span> <span class="text-cyber-green">ONLINE</span></div>
+                        ${node.speed ? `<div class="flex justify-between"><span class="text-slate-400">ความเร็ว:</span> <span class="text-cyber-cyan">${node.speed * node.level} Mbps</span></div>` : ''}
+                    </div>
+                    <div class="flex space-x-2 mt-2">
+                        <button onclick="upgradeNode(${node.id})" class="flex-1 bg-cyber-cyan hover:bg-cyan-400 text-cyber-dark font-bold font-mono py-2 px-2 rounded text-[11px] transition flex items-center justify-center space-x-1">
+                            <i class="fa-solid fa-arrow-up"></i>
+                            <span>อัปเกรด (${node.cost * node.level} C)</span>
+                        </button>
+                    </div>
+                `;
+            }
+            document.getElementById('node-details-content').innerHTML = contentHtml;
+        }
+
+        function upgradeFirewallHp(id) {
+            if (gameState.isGameOver) return;
+            let node = nodes.find(n => n.id === id);
+            let cost = 150;
+            if (node.maxHp >= 2000) {
+                showToast('Security Firewall เลือดเต็มพิกัดสูงสุด (2000 หน่วย) แล้ว!', 'error');
+                return;
+            }
+            if (gameState.coins >= cost) {
+                gameState.coins -= cost;
+                node.maxHp = Math.min(2000, node.maxHp + 200);
+                node.hp = node.maxHp;
+                updateUI();
+                selectNode(id);
+                showToast('อัปเกรดเพิ่มเลือด Security Firewall สำเร็จ (+200 HP)', 'success');
+            } else {
+                showToast('Coins ไม่พอสำหรับการอัปเกรดเลือด Firewall!', 'error');
+            }
+        }
+
+        function upgradeFirewallReduction(id) {
+            if (gameState.isGameOver) return;
+            let node = nodes.find(n => n.id === id);
+            let cost = 200;
+            if (node.damageReduction >= 100) {
+                showToast('เปอร์เซ็นต์การลดดาเมจของ Firewall สูงสุดเต็มพิกัด 100% แล้ว!', 'error');
+                return;
+            }
+            if (gameState.coins >= cost) {
+                gameState.coins -= cost;
+                node.damageReduction = Math.min(100, node.damageReduction + 15);
+                updateUI();
+                selectNode(id);
+                showToast('อัปเกรดเพิ่มประสิทธิภาพการลดดาเมจ Firewall สำเร็จ (+15%)', 'success');
+            } else {
+                showToast('Coins ไม่พอสำหรับการอัปเกรดลดดาเมจ Firewall!', 'error');
+            }
+        }
+
+        function upgradeNode(id) {
+            if (gameState.isGameOver) return;
+            let node = nodes.find(n => n.id === id);
+            let cost = node.cost * node.level;
+            if (gameState.coins >= cost) {
+                gameState.coins -= cost;
+                node.level += 1;
+                if(node.speed) node.speed += 5;
+                updateUI();
+                selectNode(id);
+                showToast(`อัปเกรด ${node.name} เป็น Lv.${node.level} สำเร็จ!`, 'success');
+            } else {
+                showToast('Coins ไม่เพียงพอสำหรับการอัปเกรด!', 'error');
+            }
+        }
+
+        function activateCounterMeasure(type) {
+            if (gameState.isGameOver) return;
+            if (type === 'isolate' && gameState.coins >= 50) {
+                gameState.coins -= 50;
+                threats.forEach(th => th.speed *= 0.3);
+                updateUI();
+                showToast('ตัดวงจรเครือข่ายชั่วคราว ลดความเร็วภัยคุกคาม!', 'success');
+            } else if (type === 'patch' && gameState.coins >= 120) {
+                gameState.coins -= 120;
+                let fw = nodes.find(n => n.type === 'firewall');
+                if(fw && fw.hp < fw.maxHp) {
+                    fw.hp = fw.maxHp;
+                }
+                updateUI();
+                showToast('ซ่อมแซมและแพตช์ Security Firewall เต็มอัตรา!', 'success');
+            } else if (type === 'flush' && gameState.coins >= 150) {
+                gameState.coins -= 150;
+                threats = [];
+                gameState.threatsCount = 0;
+                updateUI();
+                showToast('ล้างมัลแวร์ทั้งหมดเรียบร้อย!', 'success');
+            } else {
+                showToast('Coins ไม่พอใช้งานระบบนี้', 'error');
+            }
+        }
+
+        function waveProgressionTimer() {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            gameState.currentWave++;
+            updateUI();
+
+            if (gameState.currentWave % 10 === 0) {
+                threats.push({
+                    x: 50,
+                    y: canvas.height / 2,
+                    targetIdx: nodes.length - 1,
+                    progress: 0,
+                    speed: bossAttack.speed,
+                    hp: bossAttack.hp,
+                    maxHp: bossAttack.hp,
+                    type: bossAttack,
+                    isBoss: true
+                });
+                gameState.threatsCount = threats.length;
+                updateUI();
+                showToast(`🚨 BOSS WAVE ${gameState.currentWave}! ${bossAttack.name} บุก!`, 'error');
+            } else {
+                let count = Math.min(3, Math.floor(gameState.currentWave / 3) + 1);
+                showToast(`⚠️ สัญญาณเตือนภัย Wave ${gameState.currentWave} เริ่มขึ้นแล้ว!`, 'error');
+
+                for (let i = 0; i < count; i++) {
+                    setTimeout(() => {
+                        if (gameState.isGameOver) return;
+                        let randomAttack = attackTypes[Math.floor(Math.random() * attackTypes.length)];
+                        threats.push({
+                            x: 50,
+                            y: Math.random() * (canvas.height - 60) + 30,
+                            targetIdx: nodes.length - 1,
+                            progress: 0,
+                            speed: randomAttack.speed * (1 + (gameState.currentWave * 0.02)),
+                            hp: randomAttack.hp,
+                            maxHp: randomAttack.hp,
+                            type: randomAttack,
+                            isBoss: false
+                        });
+                        gameState.threatsCount = threats.length;
+                        updateUI();
+                    }, i * 600);
+                }
+            }
+        }
+
+        function gameLoop() {
+            if (!gameState.isLoggedIn) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid lines
+            ctx.strokeStyle = '#1e2538';
+            ctx.lineWidth = 1;
+            let gridSize = 40;
+            for (let x = 0; x < canvas.width; x += gridSize) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += gridSize) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            // Draw connection links
+            links.forEach(link => {
+                let n1 = nodes.find(n => n.id === link.from);
+                let n2 = nodes.find(n => n.id === link.to);
+                if (n1 && n2) {
+                    let x1 = (n1.x / 900) * canvas.width;
+                    let y1 = (n1.y / 360) * canvas.height;
+                    let x2 = (n2.x / 900) * canvas.width;
+                    let y2 = (n2.y / 360) * canvas.height;
+
+                    ctx.strokeStyle = '#f3e60033';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            });
+
+            // Update and draw coin signals
+            if (!gameState.isGameOver) {
+                for (let i = coinSignals.length - 1; i >= 0; i--) {
+                    let sig = coinSignals[i];
+                    sig.progress += sig.speed;
+
+                    let currentNodeId = sig.path[sig.segmentIndex + 1];
+                    let currentNodeObj = nodes.find(n => n.id === currentNodeId);
+                    
+                    if (currentNodeObj && currentNodeObj.type === 'switch' && !sig.buffedNodes[currentNodeId]) {
+                        if (sig.progress >= 0.5) {
+                            sig.buffedNodes[currentNodeId] = true;
+                            
+                            // Random Buff: 40% chance to get +2 coins
+                            let isBuffTriggered = Math.random() < 0.40;
+                            let nx = (currentNodeObj.x / 900) * canvas.width;
+                            let ny = (currentNodeObj.y / 360) * canvas.height;
+
+                            // Trigger visual pulse/animation on switch
+                            currentNodeObj.pulseTimer = 25; // Frame countdown for visual effect
+
+                            if (isBuffTriggered) {
+                                sig.value += 2;
+                                showFloatingNumber(`+2 Coins! (Lucky 40%)`, 'coin', nx, ny);
+                            } else {
+                                showFloatingNumber(`Miss (60%)`, 'damage', nx, ny);
+                            }
+                        }
+                    }
+
+                    if (sig.progress >= 1) {
+                        sig.progress = 0;
+                        sig.segmentIndex++;
+                        if (sig.segmentIndex >= sig.path.length - 1) {
+                            gameState.coins += sig.value;
+                            let serverNode = nodes.find(n => n.type === 'server');
+                            if (serverNode) {
+                                let sx = (serverNode.x / 900) * canvas.width;
+                                let sy = (serverNode.y / 360) * canvas.height;
+                                showFloatingNumber(`Total +${sig.value} Coins`, 'coin', sx, sy);
+                            }
+                            updateUI();
+                            coinSignals.splice(i, 1);
+                            continue;
+                        }
+                    }
+
+                    let fromNodeId = sig.path[sig.segmentIndex];
+                    let toNodeId = sig.path[sig.segmentIndex + 1];
+                    let n1 = nodes.find(n => n.id === fromNodeId);
+                    let n2 = nodes.find(n => n.id === toNodeId);
+
+                    if (n1 && n2) {
+                        let x1 = (n1.x / 900) * canvas.width;
+                        let y1 = (n1.y / 360) * canvas.height;
+                        let x2 = (n2.x / 900) * canvas.width;
+                        let y2 = (n2.y / 360) * canvas.height;
+
+                        let cx = x1 + (x2 - x1) * sig.progress;
+                        let cy = y1 + (y2 - y1) * sig.progress;
+
+                        ctx.fillStyle = '#f3e600';
+                        ctx.shadowColor = '#f3e600';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // Update and draw threats
+            if (!gameState.isGameOver) {
+                for (let i = threats.length - 1; i >= 0; i--) {
+                    let th = threats[i];
+                    th.progress += th.speed;
+
+                    let startX = 50;
+                    let startY = canvas.height / 2;
+                    let firewallNode = nodes.find(n => n.type === 'firewall');
+                    let targetX = (firewallNode.x / 900) * canvas.width;
+                    let targetY = (firewallNode.y / 360) * canvas.height;
+
+                    let tx = startX + (targetX - startX) * th.progress;
+                    let ty = startY + (targetY - startY) * th.progress;
+
+                    ctx.fillStyle = th.type.color;
+                    ctx.shadowColor = th.type.color;
+                    ctx.shadowBlur = th.isBoss ? 16 : 8;
+                    ctx.beginPath();
+                    ctx.arc(tx, ty, th.isBoss ? 16 : 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = '9px Orbitron, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${th.type.name} (${th.hp}HP)`, tx, ty - 14);
+
+                    if (th.progress >= 1) {
+                        let rawDmg = th.type.damage;
+                        let finalDmg = rawDmg;
+
+                        if (firewallNode.hp > 0) {
+                            let reducedAmount = (rawDmg * firewallNode.damageReduction) / 100;
+                            finalDmg = Math.max(0, rawDmg - reducedAmount);
+
+                            if (firewallNode.hp >= rawDmg) {
+                                firewallNode.hp -= rawDmg;
+                                showFloatingNumber(`Firewall -${rawDmg}`, 'firewall', targetX, targetY);
+                            } else {
+                                let overflowDmg = rawDmg - firewallNode.hp;
+                                firewallNode.hp = 0;
+                                finalDmg = overflowDmg;
+                                showFloatingNumber(`Firewall BROKEN!`, 'damage', targetX, targetY);
+                            }
+                        } else {
+                            finalDmg = rawDmg;
+                        }
+
+                        if (finalDmg > 0) {
+                            gameState.serverHealth = Math.max(0, gameState.serverHealth - finalDmg);
+                            showFloatingNumber(`-${Math.round(finalDmg)}% Server`, 'damage');
+                            triggerScreenShake();
+                            showToast(`เซิร์ฟเวอร์โดนโจมตีทะลุ Firewall! (-${Math.round(finalDmg)}%)`, 'error');
+                        } else {
+                            showToast(`Security Firewall บล็อกการโจมตีของ ${th.type.name} ได้ทั้งหมด!`, 'success');
+                        }
+
+                        threats.splice(i, 1);
+                        gameState.threatsCount = threats.length;
+                        updateUI();
+
+                        if (gameState.serverHealth <= 0) {
+                            triggerGameOver();
+                        }
+                    }
+                }
+            }
+
+            // Draw network nodes
+            nodes.forEach(node => {
+                let nx = (node.x / 900) * canvas.width;
+                let ny = (node.y / 360) * canvas.height;
+                let isSelected = gameState.selectedNodeId === node.id;
+
+                // Handle switch animation pulse
+                if (node.pulseTimer && node.pulseTimer > 0) {
+                    node.pulseTimer--;
+                    ctx.strokeStyle = '#00ff66';
+                    ctx.lineWidth = 4;
+                    ctx.beginPath();
+                    ctx.arc(nx, ny, 28 + (25 - node.pulseTimer) * 0.5, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                if (isSelected) {
+                    ctx.strokeStyle = '#f3e600';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.arc(nx, ny, 26, 0, Math.PI * 2); ctx.stroke();
+                }
+
+                ctx.fillStyle = '#121520';
+                ctx.strokeStyle = node.type === 'server' ? '#00ff66' : (node.type === 'firewall' ? '#ff0055' : '#f3e600');
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(nx, ny, 18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+                ctx.fillStyle = ctx.strokeStyle;
+                ctx.font = '12px FontAwesome';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                let iconSymbol = '\uf233';
+                if (node.type === 'router') iconSymbol = '\uf796';
+                if (node.type === 'switch') iconSymbol = '\uf6ff';
+                if (node.type === 'firewall') iconSymbol = '\uf3ed';
+                ctx.fillText(iconSymbol, nx, ny);
+
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '10px Prompt, sans-serif';
+                if (node.type === 'firewall') {
+                    ctx.fillText(`${node.name} [HP:${node.hp}/${node.maxHp}]`, nx, ny + 32);
+                } else if (node.type === 'switch') {
+                    ctx.fillText(`${node.name} (Lv.${node.level} | 40% +2C)`, nx, ny + 32);
+                } else {
+                    ctx.fillText(`${node.name} (Lv.${node.level})`, nx, ny + 32);
+                }
+            });
+        }
+
+        function triggerGameOver() {
+            gameState.isGameOver = true;
+            threats = [];
+            coinSignals = [];
+            updateUI();
+            openModal('gameover-modal');
+        }
+
+        function restartGame() {
+            gameState.coins = gameState.isAdmin ? 2000 : 200;
+            gameState.bandwidth = gameState.isAdmin ? 250 : 100;
+            gameState.serverHealth = 100;
+            gameState.threatsCount = 0;
+            gameState.currentWave = 1;
+            gameState.selectedNodeId = null;
+            gameState.isGameOver = false;
+
+            threats = [];
+            coinSignals = [];
+            nodes = [
+                { id: 1, name: 'Core Router', type: 'router', x: 200, y: 180, level: 1, speed: 20, cost: 150, defense: 50, desc: 'เราเตอร์หลักกระจายสัญญาณทั่วเครือข่าย' },
+                { id: 2, name: 'Switch Alpha', type: 'switch', x: 380, y: 100, level: 1, speed: 15, cost: 100, defense: 40, desc: 'สวิตช์ส่งข้อมูลแผนก A (สุ่ม 40% รับ +2 Coins)' },
+                { id: 3, name: 'Switch Beta', type: 'switch', x: 380, y: 260, level: 1, speed: 15, cost: 100, defense: 40, desc: 'สวิตช์ส่งข้อมูลแผนก B (สุ่ม 40% รับ +2 Coins)' },
+                { id: 4, name: 'Security Firewall', type: 'firewall', x: 580, y: 180, level: 1, hp: 200, maxHp: 200, damageReduction: 20, cost: 200, desc: 'ไฟร์วอลล์กรองภัยคุกคามและลดดาเมจก่อนเข้าเซิร์ฟเวอร์' },
+                { id: 5, name: 'Main Database Server', type: 'server', x: 750, y: 180, level: 1, capacity: 500, cost: 300, defense: 100, desc: 'เซิร์ฟเวอร์หลักเก็บข้อมูลและประมวลผล' }
+            ];
+
+            closeModal('gameover-modal');
+            updateUI();
+            initShop();
+            initProtocols();
+            document.getElementById('node-details-content').innerHTML = `<p class="text-slate-400 italic bg-cyber-dark/50 p-3 rounded-lg border border-cyber-border">คลิกที่โหนดในแผนผังเครือข่ายเพื่อดูสถานะ และติดตั้งระบบป้องกัน</p>`;
+            document.getElementById('selected-node-title').innerText = 'เลือกโหนดในแผนผัง';
+            document.getElementById('selected-node-level').innerText = 'Lv. -';
+        }
+
+        function runProtocolsTask() {
+            if (!gameState.isLoggedIn || gameState.isGameOver) return;
+            let ids = protocols.find(p => p.id === 'ids');
+            if (ids && ids.active && threats.length > 0) {
+                let normalThreatIdx = threats.findIndex(th => !th.isBoss);
+                if (normalThreatIdx !== -1) {
+                    let eliminated = threats.splice(normalThreatIdx, 1)[0];
+                    gameState.threatsCount = threats.length;
+                    updateUI();
+                    showToast(`[IDS] บล็อกมัลแวร์ ${eliminated.type.name} อัตโนมัติ!`, 'success');
+                }
+            }
+        }
+
+        function initShop() {
+            let shopContainer = document.getElementById('shop-list');
+            shopContainer.innerHTML = shopItems.map((item, idx) => `
+                <div class="bg-cyber-dark border border-cyber-border rounded-lg p-2.5 flex items-center justify-between hover:border-cyber-cyan/50 transition">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 rounded bg-cyber-cyan/10 border border-cyber-cyan/30 flex items-center justify-center text-cyber-cyan text-xs">
+                            <i class="fa-solid ${item.icon}"></i>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-200 font-mono">${item.name}</h4>
+                            <p class="text-[10px] text-slate-400">${item.desc}</p>
+                        </div>
+                    </div>
+                    <button onclick="buyShopItem(${idx})" class="bg-cyber-cyan/20 hover:bg-cyber-cyan hover:text-cyber-dark text-cyber-cyan border border-cyber-cyan/40 px-2.5 py-1 rounded text-xs font-mono transition font-bold shrink-0">
+                        ${item.cost} C
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function initProtocols() {
+            let protoContainer = document.getElementById('protocols-grid');
+            protoContainer.innerHTML = protocols.map(proto => `
+                <div class="bg-cyber-dark border ${proto.active ? 'border-cyber-green/50 bg-cyber-green/5' : 'border-cyber-border'} rounded-lg p-3 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="text-xs font-bold text-slate-200 font-mono">${proto.name}</h4>
+                            <span class="text-[10px] font-mono px-2 py-0.5 rounded ${proto.active ? 'bg-cyber-green/20 text-cyber-green' : 'bg-slate-800 text-slate-400'}">
+                                ${proto.active ? 'ACTIVE' : 'OFF'}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mb-2">${proto.desc}</p>
+                    </div>
+                    ${!proto.active ? `
+                        <button onclick="buyProtocol('${proto.id}')" class="w-full bg-cyber-border hover:bg-slate-800 text-cyber-cyan border border-cyber-cyan/30 py-1 rounded text-xs font-mono transition">
+                            เปิดใช้งาน (${proto.cost} Coins)
+                        </button>
+                    ` : `
+                        <div class="text-[10px] text-cyber-green font-mono text-right"><i class="fa-solid fa-check"></i> ทำงานอยู่</div>
+                    `}
+                </div>
+            `).join('');
+        }
+
+        function buyShopItem(idx) {
+            if (gameState.isGameOver) return;
+            let item = shopItems[idx];
+            if (gameState.coins >= item.cost) {
+                gameState.coins -= item.cost;
+                if (item.type === 'repair') {
+                    gameState.serverHealth = Math.min(100, gameState.serverHealth + 25);
+                    showToast('ซ่อมแซม Server สำเร็จ (+25% Health)', 'success');
+                } else if (item.type === 'speed') {
+                    gameState.bandwidth += 50;
+                    showToast('เพิ่มแบนด์วิธเครือข่ายสำเร็จ (+50 Mbps)', 'success');
+                } else if (item.type === 'node') {
+                    let newNodeId = nodes.length + 1;
+                    nodes.push({
+                        id: newNodeId,
+                        name: `Sub-Switch ${newNodeId}`,
+                        type: 'switch',
+                        x: 250 + (newNodeId * 40),
+                        y: 80 + (newNodeId * 30),
+                        level: 1,
+                        speed: 12,
+                        cost: 120,
+                        desc: 'โหนดสวิตช์เครือข่ายส่วนขยาย (สุ่ม 40% รับ +2 Coins)'
+                    });
+                    links.push({ from: 1, to: newNodeId });
+                    showToast('ติดตั้งโหนดสวิตช์เครือข่ายใหม่สำเร็จ!', 'success');
+                }
+                updateUI();
+            } else {
+                showToast('Coins ไม่เพียงพอซื้ออุปกรณ์นี้!', 'error');
+            }
+        }
+
+        function buyProtocol(id) {
+            if (gameState.isGameOver) return;
+            let proto = protocols.find(p => p.id === id);
+            if (proto && !proto.active) {
+                if (gameState.coins >= proto.cost) {
+                    gameState.coins -= proto.cost;
+                    proto.active = true;
+                    initProtocols();
+                    updateUI();
+                    showToast(`เปิดใช้งานโปรโตคอล ${proto.name} สำเร็จ!`, 'success');
+                } else {
+                    showToast('Coins ไม่พอเปิดใช้งานโปรโตคอลนี้!', 'error');
+                }
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('player-coins').innerText = gameState.coins;
+            document.getElementById('player-bw').innerText = gameState.bandwidth;
+            document.getElementById('server-health-text').innerText = `${gameState.serverHealth}%`;
+            document.getElementById('wave-count').innerText = `Wave ${gameState.currentWave}`;
+            document.getElementById('threat-count').innerText = `${gameState.threatsCount} ตัว`;
+
+            let healthEl = document.getElementById('server-health-icon');
+            let healthTextEl = document.getElementById('server-health-text');
+            if (gameState.serverHealth < 50) {
+                healthTextEl.className = 'text-cyber-magenta font-bold text-base lg:text-lg font-mono';
+                healthEl.className = 'w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-cyber-magenta/10 border border-cyber-magenta/30 flex items-center justify-center text-cyber-magenta animate-pulse';
+            } else {
+                healthTextEl.className = 'text-cyber-green font-bold text-base lg:text-lg font-mono';
+                healthEl.className = 'w-9 h-9 lg:w-10 lg:h-10 rounded-xl bg-cyber-green/10 border border-cyber-green/30 flex items-center justify-center text-cyber-green';
+            }
+
+            if (gameState.selectedNodeId) {
+                let curNode = nodes.find(n => n.id === gameState.selectedNodeId);
+                if (curNode) {
+                    selectNode(curNode.id);
+                }
+            }
+        }
+
+        function showToast(msg, type = 'success') {
+            let toast = document.getElementById('toast');
+            let toastMsg = document.getElementById('toast-msg');
+            let toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.innerText = msg;
+            if (type === 'error') {
+                toast.className = 'fixed bottom-5 right-5 bg-cyber-panel border border-cyber-magenta text-cyber-magenta font-mono text-xs px-4 py-3 rounded-xl shadow-2xl transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center space-x-3 max-w-sm';
+                toastIcon.className = 'fa-solid fa-triangle-exclamation text-base shrink-0';
+            } else {
+                toast.className = 'fixed bottom-5 right-5 bg-cyber-panel border border-cyber-cyan text-cyber-cyan font-mono text-xs px-4 py-3 rounded-xl shadow-2xl transform translate-y-0 opacity-100 transition-all duration-300 z-50 flex items-center space-x-3 max-w-sm';
+                toastIcon.className = 'fa-solid fa-circle-check text-base shrink-0';
+            }
+
+            setTimeout(() => {
+                toast.className = 'fixed bottom-5 right-5 bg-cyber-panel border border-cyber-cyan text-cyber-cyan font-mono text-xs px-4 py-3 rounded-xl shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center space-x-3 max-w-sm';
+            }, 3000);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
